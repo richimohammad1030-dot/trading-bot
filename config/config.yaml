@@ -1,0 +1,223 @@
+# =====================================================
+# config.yaml - PARAMETER UTAMA SISTEM (Blueprint v16)
+# File ini AMAN untuk di-commit (tidak ada data rahasia)
+# Semua kredensial ada di .env, bukan di sini
+# =====================================================
+
+# --- Broker / Symbol Naming ---
+broker:
+  # Exness kadang menambahkan suffix ke nama symbol
+  # (misal "EURUSDm" untuk akun cent). Isi setelah
+  # menjalankan list_available_symbols("EURUSD") di
+  # mt5_connector.py. Kosongkan ("") jika tidak ada suffix.
+  symbol_suffix: "m"
+
+# --- Pair & Grouping ---
+pairs:
+  group_a:          # USD strength group - total risk max 1%
+    - EURUSD
+    - GBPUSD
+    - AUDUSD
+  group_b:          # Independen, risk 1% sendiri
+    - USDJPY
+  independent:      # Independen, risk 1% sendiri
+    - XAUUSD
+
+# --- Spread Baseline (pip) & Threshold Skip (2x baseline) ---
+spread:
+  EURUSD: { baseline: 0.4, skip_above: 1.0 }
+  GBPUSD: { baseline: 0.7, skip_above: 2.0 }
+  USDJPY: { baseline: 0.7, skip_above: 2.0 }
+  AUDUSD: { baseline: 0.7, skip_above: 2.0 }
+  XAUUSD: { baseline: 20,  skip_above: 50 }
+
+# --- Timeframe (LAMA -- arsitektur signal_engine.py yang sudah
+# dipensiunkan, dibiarkan agar modul lama yang belum dihapus tidak
+# error. Screener BARU pakai section screener_timeframes di bawah). ---
+timeframes:
+  zone: H1          # untuk trend, OB/SBR-RBS, fractal, Fibonacci
+  entry: M30        # untuk double bottom/top, engulfing primary
+  entry_fallback: M15  # fallback engulfing
+  htf_context: H4   # tambahan context untuk final_visual_review
+
+# --- Fractal (anti-repaint) ---
+fractal:
+  left: 5
+  right: 5
+  confirm_offset: 6   # baca dari candle[-6]
+
+# --- ATR (anti-repaint) ---
+atr:
+  period: 14
+  read_offset: 2      # baca dari candle[-2]
+  avg_period_days: 14
+
+# --- ADX (SEKARANG data pendukung utk Tier 2, BUKAN penentu bias --
+# bias sudah pindah ke struktur H1 via bos_choch. Section ini tetap
+# dipakai get_confirmed_snapshot() untuk hitung ADX/+DI/-DI sbg data). ---
+adx:
+  period: 14
+  trending_above: 25
+  ranging_below: 20
+  # 20-25 = grey zone -> resolve via Claude task adx_grey_zone
+  # (masih dipakai detect_trend() lama, tidak lagi dipanggil screener.py)
+
+# --- EMA (data pendukung utk Tier 2, BUKAN penentu bias) ---
+ema:
+  fast: 20
+  slow: 50
+
+# --- Fibonacci (Path B golden zone) ---
+fibonacci:
+  golden_zone_min: 0.618
+  golden_zone_max: 0.786
+
+# --- Entry Confirmation Window (LAMA, arsitektur signal_engine.py) ---
+confirmation:
+  double_bottom_top_window: "00:00-23:59"  # WIB, hari pembentukan
+  engulfing_m30_max_candles: 3
+  engulfing_m15_max_candles: 3
+
+# --- Risk Framework ---
+risk:
+  per_trade_pct: 1.0          # default 1%, dibagi jika dual Group A
+  per_trade_dual_pct: 0.5      # jika 2 pair Group A bersamaan
+  per_trade_triple_pct: 0.33   # jika 3 pair Group A bersamaan
+  max_total_exposure_pct: 2.0  # pre-entry check universal
+  daily_limit_pct: 2.0
+  weekly_limit_pct: 10.0
+  monthly_limit_pct: 20.0
+  monthly_rolling_days: 30
+  rr_ratio: 2.0                 # TP = SL distance x 2
+
+# --- Re-entry ---
+re_entry:
+  blacklist_reset_time: "00:00"  # WIB
+
+# --- News Filter ---
+news:
+  source: forexfactory
+  fetch_times: ["07:00", "16:00"]  # WIB, sebelum London & NY
+  impact_filter: high_only
+
+# --- Overnight Evaluation ---
+overnight:
+  evaluation_time: "22:45"  # WIB
+  hold_threshold_score: 7    # >= 7 -> hold_overnight
+
+# --- Exit Logic (SL/TP/BE/Friday close) ---
+exit:
+  sl_atr_multiplier: 1.5      # SL = OB/SBR edge +/- (ATR x multiplier) +/- spread
+  breakeven_at_rr: 1.0        # pindah SL ke entry saat profit capai 1:1 RR
+  friday_close_time: "23:30"  # WIB, force-close semua posisi sebelum weekend
+  friday_no_new_entry_time: "21:00"  # WIB, stop entry baru menjelang Jumat tutup
+
+# --- M15 Confirmation (LAMA, arsitektur signal_engine.py -- digantikan
+# gate M5 close-in-zone yang jauh lebih sederhana di screener.py) ---
+confirmation_m15:
+  strong_engulfing:
+    body_ratio_min: 1.5     # body candle2 >= 1.5x body candle1 (ukuran ekstrem)
+    min_body_pct: 0.70      # body candle2 >= 70% dari range candle2 (shadow minim)
+    # volume: candle2 > candle1 (simple, tidak ada parameter tambahan)
+  pin_bar:
+    wick_ratio_min: 2.0       # wick dominan >= 2x body
+    min_wick_pct: 0.65        # wick dominan >= 65% dari total range
+    max_body_pct: 0.35        # body <= 35% dari total range
+    max_minor_wick_pct: 0.15  # wick berlawanan (minor) <= 15% dari range
+
+# --- Modal Strategy ---
+modal:
+  initial_usd: 10
+  monthly_inject_usd: 10
+  account_type: cent  # Exness Cent Account
+
+# --- Scan Schedule ---
+scan:
+  interval_minutes: 30
+  active_24h: true   # tidak ada dead zone, spread filter sebagai gantinya
+
+# --- Daily/Weekly Evaluation ---
+evaluation:
+  daily_time: "23:00"  # WIB
+  weekly_day: "Sunday"
+  weekly_time: "23:30"  # WIB
+
+
+# =====================================================
+# FASE 1-3 -- TIER 1 SCREENER BARU (screener.py, structure.py,
+# zone_state.py, orderblock.py, chart_generator.py, package_builder.py)
+# Semua section di bawah ini BARU, dibangun sesi Opus + implementasi
+# bertahap Fase 1-3. Section LAMA di atas TIDAK dihapus (modul lama
+# belum dipensiunkan, dibiarkan agar tidak error).
+# =====================================================
+
+# Timeframe-agnostic (v2.0 Bab 1.3): screener BARU hanya pakai 2
+# timeframe (H4 sudah dibuang -- bias sekarang dari struktur H1 via
+# bos_choch, bukan indikator). Ganti dua nilai ini saja untuk beralih
+# skala (mis. scalping nanti: structure_tf=M15, timing_tf=M1).
+screener_timeframes:
+  structure_tf: "H1"         # bias (bos_choch) + fase struktur + area penting
+  structure_lookback: 200
+  timing_tf: "M5"            # lensa reaksi / gate timing
+  timing_lookback: 20
+
+# Bias dari bos_choch (Opsi B, dikunci sesi Opus, diverifikasi
+# diag_bias.py di data live): jumlah event BOS/CHoCH terakhir yang
+# dicek untuk menentukan konsistensi arah.
+bias_structure:
+  lookback_events: 3
+
+# Ambang keluar zona (v2.1 Bab 5.3): dipakai zone_state.py untuk
+# menentukan kapan harga dianggap benar-benar "keluar" dari zona
+# (bukan sekadar goyang kecil), memicu reset debounce.
+zone_exit:
+  multiplier: 0.5             # relatif terhadap max(lebar_zona, ATR)
+
+# Identitas zona (v2.1 Bab 6.1): ambang overlap untuk menganggap dua
+# deteksi sebagai "zona yang sama" lintas waktu.
+zone_identity:
+  overlap_threshold: 0.60
+
+# Order Block (REVISI Fase 3 -- ditemukan lewat verifikasi visual
+# chart): max_width_atr_multiplier sebelumnya HARDCODE 2.0 di
+# orderblock.py, meloloskan OB selebar ~19-20 pip di EURUSD H1 --
+# terlalu lebar untuk definisi SMC "satu candle opposite terakhir
+# sebelum displacement". Diperketat ke 1.0.
+orderblock:
+  max_width_atr_multiplier: 1.0
+
+# EQH/EQL (Fase 2, v2.0 Bab 3.3 Tahap 2): parameter deteksi liquidity
+# pool via smc.liquidity(). range_percent = toleransi pengelompokan
+# swing high/low yang dianggap "equal" (1% dari range candle).
+# zone_buffer_atr = lebar zona tipis di sekitar level (sama pola
+# dengan SBR/RBS: level ± ATR*0.2).
+liquidity:
+  swing_length: 5
+  range_percent: 0.01
+  zone_buffer_atr: 0.2
+
+# Struktur swing fresh (Fase 2, v2.0 Bab 3.3 Tahap 3): swing high/low
+# yang BELUM ditembus BOS. CATATAN: fungsi get_active_swing_structure_
+# zones() ADA di structure.py tapi TIDAK DIPANGGIL screener.py --
+# dinonaktifkan karena menyumbang ~70% volume kandidat berlebih
+# (verifikasi replay_gate_check.py: 204/293 kandidat). Section ini
+# dibiarkan untuk kalau nanti diaktifkan kembali.
+swing_structure:
+  zone_buffer_atr: 0.2
+  broken_level_tolerance_atr: 0.1
+  max_zones_per_type: 1
+
+# Supply/Demand (Fase 2, v2.0 Bab 3.3 Tahap 4): basing (konsolidasi
+# sempit) + displacement (breakout tajam). Ambang dari v2.0 Bab 3.1 +
+# addendum -- akan dikalibrasi ulang setelah backtest nyata.
+supply_demand:
+  min_basing_candles: 3
+  max_basing_candles: 6
+  basing_range_atr_multiplier: 1.5   # lebar basing maks vs ATR
+  basing_body_ratio_max: 0.5         # body/range maks tiap candle basing
+  displacement_atr_multiplier: 2.0   # range candle displacement min vs ATR
+  max_zones: 5                       # maks zona S&D yang di-scan per siklus
+
+# --- Fase 6: Eksekusi Order Sungguhan ---
+execution:
+  enabled: true   # Fase 4/5 = paper mode (false). Fase 6 = order sungguhan (true).

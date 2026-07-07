@@ -1,0 +1,11 @@
+python-dotenv==1.0.1
+PyYAML==6.0.2
+MetaTrader5
+pandas
+numpy
+scipy
+requests
+anthropic
+smartmoneyconcepts
+mplfinance
+APScheduler==3.10.4

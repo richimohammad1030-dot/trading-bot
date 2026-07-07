@@ -1,0 +1,32 @@
+# Secrets - JANGAN PERNAH commit file ini
+.env
+*.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Data & logs (generated at runtime)
+# CATATAN: log sebenarnya ada di data/*.log (scheduler.log), BUKAN logs/*.log
+# -- path lama salah, scheduler.log tidak akan pernah ter-ignore olehnya.
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/*.sqlite
+data/*.log
+logs/*.log
+data/charts/
+*.png
+*.jpg
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
